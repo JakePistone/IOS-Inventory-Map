@@ -2,121 +2,222 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DFW IOS Inventory Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NIOS Land Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script> <!-- Add PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
     <style>
         html, body {
             height: 100%;
             margin: 0;
             padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f7fa00;
         }
-        #map { 
-            height: 100vh; /* Full viewport height */
-            width: 100%; /* Full width */
+        #map {
+            height: 100vh;
+            width: 100%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
         }
         .custom-marker-icon {
-            border: 2px solid #ffffff; /* White border */
-            color: white; /* Number color */
-            font-weight: bold;
-            font-size: 14px;
+            border: 2px solid #ffffff;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
             text-align: center;
-            border-radius: 50%; /* Circular shape */
-            width: 30px;
-            height: 30px;
-            line-height: 30px; /* Center vertically */
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            line-height: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+        .custom-marker-icon:hover {
+            transform: scale(1.1);
         }
         .dropdown-container {
             position: absolute;
-            top: 10px;
-            right: 60px; /* Moved left to avoid overlap with layer control */
-            z-index: 1100; /* Above map, below expanded layer control */
+            top: 20px;
+            right: 20px;
+            z-index: 1100;
             display: flex;
-            flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            background: #ffffff;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            background: #1a73e8;
+            color: white;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #1557b0;
+        }
+        button:active {
+            background: #104080;
+        }
+        #property-selector, #property-search-container, #market-search-container, #market-selector-container {
+            position: absolute;
+            z-index: 1000;
+            padding: 1px;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.521);
+            max-width: 320px;
+            font-size: 14px;
         }
         #property-selector {
-            position: absolute;
-            top: 50px; /* Position below title */
-            left: 50px;
-            z-index: 1000;
-            padding: 5px;
-            background: rgb(250, 251, 251);
-            border: 1px solid #ccc;
-            max-width: 300px;
-            font-size: 14px;
+            top: 80px;
+            left: 20px;
         }
         #property-search-container {
-            position: absolute;
-            top: 80px; /* Position below selector */
-            left: 50px;
-            z-index: 1000;
-            max-width: 300px;
+            top: 130px;
+            left: 20px;
+            z-index: 1600;
         }
-        #property-search {
-            width: 100%;
-            padding: 5px;
-            background: rgb(250, 251, 251);
-            border: 1px solid #ccc;
-            font-size: 14px;
+        #market-search-container {
+            top: 180px;
+            left: 20px;
+            z-index: 1400;
         }
-        #search-results {
+        #market-selector-container {
+            top: 230px;
+            left: 20px;
+        }
+        #market-selector-list {
             max-height: 200px;
             overflow-y: auto;
-            background: white;
-            border: 1px solid #ccc;
-            border-top: none;
+            display: block;
+            margin-top: 8px;
+        }
+        #market-selector-list.collapsed {
             display: none;
         }
-        #search-results div {
-            padding: 5px;
+        #market-toggle {
+            width: 100%;
+            text-align: left;
+            background: #f1f3f5;
+            border: none;
+            padding: 8px 12px;
             cursor: pointer;
+            border-radius: 6px;
+            font-weight: 500;
+            color: #000000;
+            transition: background 0.2s;
         }
-        #search-results div:hover {
-            background: #f0f0f0;
+        #market-toggle:hover {
+            background: #e2e6ea;
         }
-        #key-selector, .toggle-container {
-            padding: 5px;
-            background: rgb(250, 251, 251);
-            border: 1px solid #ccc;
-            max-width: 300px;
+        #market-search, #property-search {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
             font-size: 14px;
+            transition: border-color 0.2s;
         }
-        #key-selector {
-            background: rgb(240, 240, 240); /* Slightly different background for distinction */
-            display: none; /* Hidden by default */
+        #market-search:focus, #property-search:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+        }
+        #market-search-results, #search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            display: none;
+        }
+        #market-search-results {
+            z-index: 1500;
+        }
+        #search-results {
+            z-index: 1700;
+        }
+        #market-search-results div, #search-results div {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #market-search-results div:hover, #search-results div:hover {
+            background: #f1f3f5;
+        }
+        .toggle-container {
+            padding: 12px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 320px;
+            font-size: 14px;
         }
         .map-title {
             position: absolute;
-            top: 10px;
-            left: 50px;
+            top: 20px;
+            left: 60px;
             z-index: 1000;
             font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
-            padding: 5px 10px; /* Padding for better appearance */
-            border-radius: 4px; /* Rounded corners */
+            font-weight: 600;
+            color: #1f2937;
+            background: #ffffff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .logo {
             position: absolute;
-            bottom: 10px;
+            bottom: 20px;
             left: 20px;
-            width: 70px;
-            height: 50px;
             z-index: 1000;
-            background-color: #fcfdfeee; /* Blue background to match the logo */
-            padding: 3px 10px; /* Padding for better appearance */
-            border-radius: 3px; /* Rounded corners */
-            color: rgb(16, 17, 17);
-            font-weight: bold;
+            background: #ffffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            color: #1f2937;
+            font-weight: 600;
             font-size: 14px;
-            text-align: center;
-            line-height: 20px; /* Center text vertically */
+            line-height: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .logo img {
+            width: 70px;
+            height: 60px;
+        }
+        .date-time {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            font-size: 14px;
+            color: #1f2937;
+            background: #ffffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .leaflet-control-layers-expanded {
-            z-index: 1200 !important; /* Higher than dropdown-container */
+            z-index: 1200 !important;
+            background: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 10px;
         }
         .modal {
             display: none;
@@ -127,232 +228,627 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.5);
         }
         .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
+            background: #ffffff;
+            margin: 10% auto;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 500px;
         }
         .close {
-            color: #aaa;
+            color: #6b7280;
             float: right;
-            font-size: 28px;
-            font-weight: bold;
+            font-size: 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.2s;
         }
         .close:hover,
         .close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
+            color: #1f2937;
         }
         #exclusions-list {
             list-style-type: none;
             padding: 0;
+            margin-top: 16px;
         }
         #exclusions-list li {
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #loading-indicator {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: #ffffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: none;
+            font-size: 14px;
+            color: #1f2937;
+        }
+        table.key-table {
+            border-collapse: collapse;
+            font-size: 12px;
+            width: 100%;
+            margin-top: 8px;
+        }
+        table.key-table th, table.key-table td {
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+            line-height: 1.4;
+        }
+        table.key-table th {
+            background: #f9fafb;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        #market-selector-container label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .leaflet-top.leaflet-right {
+            top: 80px !important;
+        }
+        /* Back to Land Search button styles */
+        .back-to-search-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background-color: #d32f2f;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        .back-to-search-btn:hover {
+            background-color: #b71c1c;
+            transform: translateY(-2px);
+        }
+        .back-to-search-btn:active {
+            background-color: #9a0007;
+            transform: translateY(0);
+        }
+        /* iPhone-specific styles */
+        @media only screen and (max-width: 767px) {
+            #map {
+                height: calc(100vh - 60px);
+            }
+            .map-title {
+                top: 10px;
+                left: 10px;
+                font-size: 18px;
+                padding: 6px 12px;
+                max-width: 80%;
+                text-align: center;
+            }
+            .logo {
+                bottom: 10px;
+                left: 10px;
+                padding: 6px 12px;
+            }
+            .logo img {
+                width: 50px;
+                height: 40px;
+            }
+            .date-time {
+                top: 10px;
+                left: 10px;
+                font-size: 12px;
+                padding: 6px 12px;
+                right: 10px;
+                transform: none;
+            }
+            .dropdown-container {
+                top: 60px;
+                right: 10px;
+                flex-direction: column;
+                gap: 8px;
+                padding: 8px;
+            }
+            button {
+                padding: 10px;
+                font-size: 13px;
+                width: 100%;
+                touch-action: manipulation;
+            }
+            #property-selector {
+                top: 180px;
+                left: 10px;
+                max-width: 90%;
+                font-size: 13px;
+                padding: 8px;
+            }
+            #property-search-container {
+                top: 230px;
+                left: 10px;
+                max-width: 90%;
+            }
+            #market-search-container {
+                top: 280px;
+                left: 10px;
+                max-width: 90%;
+            }
+            #market-selector-container {
+                top: 330px;
+                left: 10px;
+                max-width: 90%;
+            }
+            #market-search, #property-search {
+                font-size: 13px;
+                padding: 10px;
+            }
+            #market-search-results, #search-results {
+                max-height: 150px;
+                font-size: 13px;
+            }
+            .custom-marker-icon {
+                width: 24px;
+                height: 24px;
+                font-size: 11px;
+                line-height: 20px;
+            }
+            .back-to-search-btn {
+                bottom: 10px;
+                right: 10px;
+                padding: 10px;
+                font-size: 13px;
+            }
+            .modal-content {
+                margin: 20% auto;
+                padding: 16px;
+                width: 95%;
+                max-width: 90%;
+            }
+            .close {
+                font-size: 20px;
+            }
+            .leaflet-control-layers-expanded {
+                max-width: 90%;
+                font-size: 13px;
+                padding: 8px;
+            }
+            table.key-table {
+                font-size: 11px;
+            }
+            table.key-table th, table.key-table td {
+                padding: 6px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="map-title">DFW IOS Inventory Map</div>
-    <div class="logo"> NATIONAL --- IOS --- <br></div>
+    <div id="loading-indicator">Loading properties...</div>
+    <div class="date-time" id="date-time"></div>
     <select id="property-selector">
-        <option value="">Loading properties...</option> <!-- Placeholder while loading -->
+        <option value="">Loading properties...</option>
     </select>
     <div id="property-search-container">
         <input type="text" id="property-search" placeholder="Search properties...">
         <div id="search-results"></div>
     </div>
-    <div class="dropdown-container">
-        <div class="toggle-container">
-            <input type="checkbox" id="color-toggle">
-            <label for="color-toggle">Color by Sale Type</label>
+    <div id="market-search-container">
+        <input type="text" id="market-search" placeholder="Search markets...">
+        <div id="market-search-results"></div>
+    </div>
+    <div id="market-selector-container">
+        <button id="market-toggle">Toggle Market Selection</button>
+        <div id="market-selector-list" class="collapsed">
+            <label><input type="checkbox" id="select-all-markets" checked> Select All Markets</label>
         </div>
-        <select id="key-selector">
-            <option value="">Color Key</option>
-            <option value="N/A" disabled style="color: #808080;">N/A - Gray</option>
-            <option value="Lease " disabled style="color: #006400;">Lease - Dark Green</option>
-            <option value="Sale" disabled style="color: #B22222;">Sale - Dark Red</option>
-            <option value="Sale/Lease" disabled style="color: #4B0082;">Sale/Lease - Indigo</option>
-            <option value="Investment" disabled style="color: #FF4500;">Investment - Orange Red</option>
-            <option value="Planned" disabled style="color: #FFD700;">Planned - Gold</option>
-            <option value="Not for sale" disabled style="color: #000000;">Not for sale - Black</option>
-            <option value="Sale/ Under Contract" disabled style="color: #0000FF;">Sale/Under contract - Blue</option>
-            <option value="" disabled style="color: #808080;">Empty - Gray</option>
-            <option value="default" disabled style="color: #1E90FF;">Other - Dodger Blue</option>
-        </select>
+    </div>
+    <div class="dropdown-container">
         <button id="manage-exclusions">Manage Exclusions</button>
         <button id="send-excluded">Send Excluded List</button>
+        <button id="screenshot-markets">Take Screenshots</button>
     </div>
-    <div id="map"></div>
+    <div id="map">
+        <div class="map-title" id="map-title">NIOS Land Map</div>
+        <div class="logo">
+            <img src="https://ik.imagekit.io/lwowie9pn/Unknown-1%20copy.png?updatedAt=1754674703991" alt="NIOS Logo">
+            <span></span>
+        </div>
+        <a href="https://jakepistone.github.io/NIOS-Land-Generator-/" class="back-to-search-btn">Back to Land Search</a>
+    </div>
     <div id="exclusions-modal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
-            <h2>Manage Exclusions (Check to Exclude)</h2>
+            <h2>Manage Exclusions</h2>
             <ul id="exclusions-list"></ul>
         </div>
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Initialize the map
-        var map = L.map('map').setView([32.7767, -96.7970], 10); // Center on Dallas, TX with broader zoom
-        
-        // Define tile layers
-        var streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Set dynamic date and time
+        const now = new Date();
+        const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' };
+        const dateOptions = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago' };
+        const timeString = now.toLocaleTimeString('en-US', timeOptions).replace(/^0/, '');
+        const dateString = now.toLocaleDateString('en-US', dateOptions);
+        document.getElementById('date-time').innerHTML = `${timeString} CDT, ${dateString}`;
+        // Initialize map with a fallback view
+        const map = L.map('map').setView([37.0902, -95.7129], 4);
+        // Define base layers
+        const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map); // Add streetLayer as the default and only initial layer
-        var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        }).addTo(map);
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
         });
-
-        // Layer control
-        var baseLayers = {
+        const baseLayers = {
             "Street Map": streetLayer,
             "Satellite": satelliteLayer
         };
-        L.control.layers(baseLayers, null, { collapsed: true }).addTo(map); // Ensure only one layer is active at a time
-
-        // Function to get color based on saleType
-        function getMarkerColor(saleType) {
-            switch (saleType) {
-                case "N/A":
-                    return "#808080"; // Gray
-                case "Lease":
-                    return "#006400"; // Dark Green
-                case "Sale":
-                    return "#B22222"; // Dark Red
-                case "Sale/ Lease":
-                    return "#4B0082"; // Indigo
-                case "Investment":
-                    return "#FF4500"; // Orange Red
-                case "Planned":
-                    return "#FFD700"; // Gold
-                case "Not for sale":
-                    return "#000000"; // Black
-                case "lease":
-                    return "#006400"; // Dark Green (same as Lease)
-                case "Sale/ Under contract":
-                    return "#0000FF"; // Blue
-                case "":
-                    return "#808080"; // Gray for empty
-                default:
-                    return "#1E90FF"; // Dodger Blue for any others
-            }
+        // Define FEMA flood overlay with error handling
+        let floodLayer;
+        try {
+            floodLayer = L.esri.dynamicMapLayer({
+                url: 'https://hazards.fema.gov/gis/nfhl/services/public/NFHL/MapServer',
+                layers: [28],
+                opacity: 0.5,
+                attribution: 'FEMA National Flood Hazard Layer'
+            });
+            floodLayer.on('load', () => console.log('FEMA Flood Layer loaded successfully'));
+            floodLayer.on('error', (err) => console.error('FEMA Flood Layer error:', err));
+        } catch (error) {
+            console.error('Error initializing FEMA Flood Layer:', error);
+            floodLayer = L.layerGroup();
         }
-
-        // Object to store markers by index
-        var markers = {};
-        var properties = [];
-        var excluded = new Set();
-
-        // Default color for markers
-        var defaultColor = '#3374ff'; // Default blue color
-async function fetchSheetData() {
-  try {
-    const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vQyjbVWD1yUEOpgxxzNEyW0SNTLJxNnfNaHuxOXoqO6pRTRqEcl9omMhULQEsfiz8qfvrTdTv4tArXH/pub?gid=0&single=true&output=csv');
-    if (!response.ok) {
-      throw new Error('Fetch failed: ' + response.status);
-    }
-    const data = await response.text();
-    console.log(data); // Log to check raw CSV
-    // Parse CSV (e.g., split by lines/commas or use a library like PapaParse)
-    const rows = data.split('\n').map(row => row.split(','));
-    // Display data points, e.g., update DOM elements
-    document.getElementById('data-container').innerText = JSON.stringify(rows);
-  } catch (error) {
-    console.error('Error fetching Sheet:', error);
-  }
-}
-fetchSheetData();
-        // Load properties from Google Sheets published CSV
-        Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vQyjbVWD1yUEOpgxxzNEyW0SNTLJxNnfNaHuxOXoqO6pRTRqEcl9omMhULQEsfiz8qfvrTdTv4tArXH/pub?gid=0&single=true&output=csv', {
+        const overlays = {
+            "FEMA Flood Zones": floodLayer
+        };
+        L.control.layers(baseLayers, overlays, { collapsed: true }).addTo(map);
+        // Global variables
+        const markers = {};
+        let properties = [];
+        const excluded = new Set();
+        const defaultColor = '#1a73e8';
+        const marketColors = {
+            'Dallas': '#e63946',
+            'Houston': '#2a9d8f',
+            'Austin': '#457b9d',
+            'default': '#1a73e8'
+        };
+        // City coordinates for markets
+        const marketCityCoords = {
+            'Dallas': [32.7767, -96.7970],
+            'Houston': [29.7604, -95.3698],
+            'Austin': [30.2672, -97.7431]
+        };
+        // Wait for map tiles to load
+        async function waitForTilesLoaded(layer) {
+            return new Promise((resolve) => {
+                layer.on('load', resolve);
+                layer.redraw();
+                setTimeout(resolve, 10000);
+            });
+        }
+        // Get selected markets
+        function getSelectedMarkets() {
+            const checkboxes = document.querySelectorAll('#market-selector-list input[type="checkbox"][value]');
+            const selected = Array.from(checkboxes).filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
+            const allMarkets = Array.from(checkboxes).map(checkbox => checkbox.value);
+            if (selected.length === allMarkets.length) {
+                return 'all';
+            }
+            return selected;
+        }
+        // Take screenshots for the selected markets
+        async function takeMarketScreenshots() {
+            document.getElementById('loading-indicator').style.display = 'block';
+            document.getElementById('loading-indicator').textContent = 'Generating PDFs...';
+            let marketsToCapture = getSelectedMarkets();
+            if (marketsToCapture === 'all') {
+                marketsToCapture = [...new Set(properties.map(p => p.market).filter(m => m !== 'N/A' && m !== ''))];
+            } else if (marketsToCapture.length === 0) {
+                alert('Please select at least one market.');
+                document.getElementById('loading-indicator').style.display = 'none';
+                return;
+            }
+            const currentZoom = map.getZoom();
+            const currentCenter = map.getCenter();
+            const originalLayer = map.hasLayer(satelliteLayer) ? satelliteLayer : streetLayer;
+            // Store original display styles
+            const dropdownContainer = document.querySelector('.dropdown-container');
+            const propertySelector = document.getElementById('property-selector');
+            const marketSelectorContainer = document.getElementById('market-selector-container');
+            const marketSearchContainer = document.getElementById('market-search-container');
+            const propertySearchContainer = document.getElementById('property-search-container');
+            const dateTime = document.getElementById('date-time');
+            const mapTitle = document.getElementById('map-title');
+            const backToSearchBtn = document.querySelector('.back-to-search-btn');
+            const originalStyles = {
+                dropdownContainer: dropdownContainer.style.display,
+                propertySelector: propertySelector.style.display,
+                marketSelectorContainer: marketSelectorContainer.style.display,
+                marketSearchContainer: marketSearchContainer.style.display,
+                propertySearchContainer: propertySearchContainer.style.display,
+                dateTime: dateTime.style.display,
+                mapTitle: mapTitle.style.display,
+                backToSearchBtn: backToSearchBtn.style.display
+            };
+            const { jsPDF } = window.jspdf;
+            for (const market of marketsToCapture) {
+                const marketProperties = properties.filter(prop => prop.market === market && !excluded.has(properties.indexOf(prop)));
+                if (marketProperties.length === 0) continue;
+                const bounds = L.latLngBounds(marketProperties.map(prop => [prop.lat, prop.lng]));
+                const cityCoords = marketCityCoords[market] || bounds.getCenter();
+                const zoomLevel = 11;
+                // Update marker numbers for this market
+                const marketIndices = properties
+                    .map((prop, index) => ({ prop, index }))
+                    .filter(({ prop, index }) => prop.market === market && !excluded.has(index))
+                    .map(({ index }) => index);
+                Object.keys(markers).forEach(index => {
+                    if (map.hasLayer(markers[index])) {
+                        map.removeLayer(markers[index]);
+                    }
+                });
+                marketIndices.forEach((index, displayIndex) => {
+                    const property = properties[index];
+                    const number = displayIndex + 1;
+                    const bgColor = marketColors[property.market] || defaultColor;
+                    const customIcon = L.divIcon({
+                        className: '',
+                        html: `<div class="custom-marker-icon" style="background-color: ${bgColor};">${number}</div>`,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    });
+                    markers[index].setIcon(customIcon);
+                    markers[index].addTo(map);
+                });
+                map.setView(cityCoords, zoomLevel);
+                map.fitBounds(bounds.pad(0.5));
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                map.removeLayer(satelliteLayer);
+                streetLayer.addTo(map);
+                await waitForTilesLoaded(streetLayer);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                // Temporarily remove flood layer to avoid CORS issues
+                let floodWasOn = map.hasLayer(floodLayer);
+                if (floodWasOn) {
+                    map.removeLayer(floodLayer);
+                }
+                // Hide UI elements except map title and logo
+                dropdownContainer.style.display = 'none';
+                propertySelector.style.display = 'none';
+                marketSelectorContainer.style.display = 'none';
+                marketSearchContainer.style.display = 'none';
+                propertySearchContainer.style.display = 'none';
+                dateTime.style.display = 'none';
+                backToSearchBtn.style.display = 'none';
+                mapTitle.textContent = `${market} Market Map`;
+                mapTitle.style.display = 'block';
+                // Create key div and append to map container
+                let keyDiv = document.createElement('div');
+                keyDiv.style.position = 'absolute';
+                keyDiv.style.bottom = '20px';
+                keyDiv.style.right = '20px';
+                keyDiv.style.background = '#ffffff';
+                keyDiv.style.padding = '12px';
+                keyDiv.style.borderRadius = '8px';
+                keyDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                keyDiv.style.zIndex = '1000';
+                keyDiv.style.maxWidth = '400px';
+                keyDiv.style.overflow = 'auto';
+                let keyHtml = `<h3 style="font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: #1f2937;">${market} Market Key</h3><table class="key-table"><tr><th>Number</th><th>Address</th><th>Acreage</th></tr>`;
+                marketProperties.forEach((prop, displayIndex) => {
+                    const num = displayIndex + 1;
+                    const name = prop.name;
+                    const ac = prop.ac || 'N/A';
+                    keyHtml += `<tr><td>${num}</td><td>${name}</td><td>${ac}</td></tr>`;
+                });
+                keyHtml += '</table>';
+                keyDiv.innerHTML = keyHtml;
+                const mapContainer = document.getElementById('map');
+                mapContainer.appendChild(keyDiv);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                try {
+                    const canvas = await html2canvas(mapContainer, {
+                        useCORS: true,
+                        allowTaint: false,
+                        logging: true,
+                        width: mapContainer.offsetWidth,
+                        height: mapContainer.offsetHeight,
+                        scale: 2
+                    });
+                    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                    const pdfWidth = doc.internal.pageSize.getWidth();
+                    const pdfHeight = doc.internal.pageSize.getHeight();
+                    const imgProps = doc.getImageProperties(canvas.toDataURL('image/png'));
+                    const scale = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+                    const imgWidth = imgProps.width * scale;
+                    const imgHeight = imgProps.height * scale;
+                    const imgX = (pdfWidth - imgWidth) / 2;
+                    const imgY = (pdfHeight - imgHeight) / 2;
+                    doc.addImage(canvas.toDataURL('image/png'), 'PNG', imgX, imgY, imgWidth, imgHeight);
+                    const dateStr = new Date().toISOString().split('T')[0];
+                    doc.save(`NIOS_Land_Map_${market.replace(/[^\w-]/g, '_')}_${dateStr}.pdf`);
+                } catch (error) {
+                    console.error(`Error generating PDF for market ${market}:`, error);
+                    alert(`Failed to generate PDF for market ${market}. Please try again.`);
+                }
+                // Restore flood layer if it was on
+                if (floodWasOn) {
+                    floodLayer.addTo(map);
+                }
+                keyDiv.remove();
+            }
+            // Restore UI elements
+            dropdownContainer.style.display = originalStyles.dropdownContainer;
+            propertySelector.style.display = originalStyles.propertySelector;
+            marketSelectorContainer.style.display = originalStyles.marketSelectorContainer;
+            marketSearchContainer.style.display = originalStyles.marketSearchContainer;
+            propertySearchContainer.style.display = originalStyles.propertySearchContainer;
+            dateTime.style.display = originalStyles.dateTime;
+            mapTitle.style.display = originalStyles.mapTitle;
+            backToSearchBtn.style.display = originalStyles.backToSearchBtn;
+            map.setView(currentCenter, currentZoom);
+            originalLayer.addTo(map);
+            updateMapAndProperties(getSelectedMarkets());
+            document.getElementById('loading-indicator').style.display = 'none';
+        }
+        // Parse CSV and initialize map markers
+        Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSepf04ahEjboAEowbxyzMhOq18C-qGYzcrHAAvnF85Er-b_zpbk-nC6MZ7OZmlui5sLnl6q7jwiw7C/pub?gid=0&single=true&output=csv', {
             download: true,
             header: true,
             skipEmptyLines: true,
-            complete: function(results) {
-                properties = results.data.map(row => ({
-                    name: row.Name || 'N/A', // Adjusted for 'Name' header case
-                    lat: parseFloat(row.lat),
-                    lng: parseFloat(row.lng),
-                    company: row.company || 'N/A',
-                    ac: row.ac || 'N/A',
-                    contacts: row.contacts || 'N/A',
-                    saleType: row["sale Type"] || 'N/A', // Adjusted for space in header
-                    link: row.link || 'N/A',
-                    notes: row.notes || ''
-                })).filter(row => !isNaN(row.lat) && !isNaN(row.lng)); // Filter invalid rows
-
-                // Add numbered markers for each property with default color initially
-                properties.forEach(function(property, index) {
-                    var number = index + 1; // Start numbering from 1
-                    var bgColor = defaultColor; // Use default color initially
-                    var customIcon = L.divIcon({
-                        className: '', // Clear default class to avoid conflicts
-                        html: '<div class="custom-marker-icon" style="background-color: ' + bgColor + ';">' + number + '</div>',
-                        iconSize: [30, 30], // Size of the icon
-                        iconAnchor: [15, 15] // Anchor point (center of the circle)
+            complete: async function(results) {
+                document.getElementById('loading-indicator').style.display = 'block';
+                document.getElementById('loading-indicator').textContent = 'Loading properties...';
+                properties = results.data
+                    .map(row => ({
+                        name: row.Name || 'N/A',
+                        lat: parseFloat(row.lat),
+                        lng: parseFloat(row.lng),
+                        zoning: row.Zoning || 'N/A',
+                        ac: row.ac || 'N/A',
+                        market: row.Market || 'N/A',
+                        dollar_per_sf: row['$/sf'] || 'N/A',
+                        price: row.Price || 'N/A',
+                        link: row.link || 'N/A'
+                    }))
+                    .filter(row => !isNaN(row.lat) && !isNaN(row.lng));
+                if (properties.length > 0) {
+                    const bounds = L.latLngBounds(properties.map(prop => [prop.lat, prop.lng]));
+                    map.fitBounds(bounds.pad(0.2));
+                } else {
+                    console.warn('No valid properties loaded from CSV. Using fallback view.');
+                }
+                // Initial marker creation with global numbering
+                for (let index = 0; index < properties.length; index++) {
+                    const property = properties[index];
+                    const number = index + 1;
+                    const bgColor = marketColors[property.market] || defaultColor;
+                    const customIcon = L.divIcon({
+                        className: '',
+                        html: `<div class="custom-marker-icon" style="background-color: ${bgColor};">${number}</div>`,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
                     });
-                    var popupContent = `
-                        <b>${property.name}</b><br>
-                        <b>Company:</b> ${property.company}<br>
-                        <b>AC:</b> ${property.ac}<br>
-                        <b>Contacts:</b> ${property.contacts}<br>
-                        <b>Sale Type:</b> ${property.saleType}<br>
-                        ${property.notes ? '<b>Notes:</b> ' + property.notes + '<br>' : ''}
-                        <a href="${property.link}" target="_blank">View Brochure / Details</a>
-                        <br><label><input type="checkbox" class="exclude-checkbox" data-index="${index}"> Exclude from table</label>
+                    const popupContent = `
+                        <div style="font-family: 'Inter', sans-serif; font-size: 13px; color: #1f2937;">
+                            <b>Name:</b> ${property.name}<br>
+                            <b>Lat:</b> ${property.lat}<br>
+                            <b>Lng:</b> ${property.lng}<br>
+                            <b>Zoning:</b> ${property.zoning}<br>
+                            <b>AC:</b> ${property.ac}<br>
+                            <b>Market:</b> ${property.market}<br>
+                            <b>$/sf:</b> ${property.dollar_per_sf}<br>
+                            <b>Price:</b> ${property.price}<br>
+                            <a href="${property.link}" target="_blank" style="color: #1a73e8; text-decoration: none;">View Brochure / Details</a><br>
+                            <label style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" class="exclude-checkbox" data-index="${index}"> Exclude
+                            </label>
+                        </div>
                     `;
-                    var marker = L.marker([property.lat, property.lng], { icon: customIcon })
+                    const marker = L.marker([property.lat, property.lng], { icon: customIcon })
                         .addTo(map)
                         .bindPopup(popupContent);
                     markers[index] = marker;
-                });
-
-                // Populate the selector
-                var selector = document.getElementById('property-selector');
-                selector.innerHTML = '<option value="">Select a property...</option>'; // Clear loading message
+                }
+                // Populate property selector
+                const propertySelector = document.getElementById('property-selector');
+                propertySelector.innerHTML = '<option value="">Select a property...</option>';
                 properties.forEach(function(property, index) {
-                    var option = document.createElement('option');
+                    const option = document.createElement('option');
                     option.value = index;
-                    option.textContent = (index + 1) + ': ' + property.name;
-                    selector.appendChild(option);
+                    option.textContent = `${index + 1}: ${property.name}`;
+                    propertySelector.appendChild(option);
                 });
-
-                // Event listener for selector change
-                selector.addEventListener('change', function() {
-                    var selectedIndex = this.value;
-                    if (selectedIndex !== '') {
-                        var property = properties[selectedIndex];
-                        map.flyTo([property.lat, property.lng], 15); // Fly to the location with zoom level 15
-                        markers[selectedIndex].openPopup(); // Open the popup
+                propertySelector.addEventListener('change', function() {
+                    const selectedIndex = parseInt(this.value);
+                    if (selectedIndex >= 0) {
+                        const property = properties[selectedIndex];
+                        map.flyTo([property.lat, property.lng], 15);
+                        markers[selectedIndex].openPopup();
                     }
                 });
-
-                // Search functionality
-                var searchInput = document.getElementById('property-search');
-                var searchResults = document.getElementById('search-results');
-                searchInput.addEventListener('input', function() {
-                    var value = this.value.toLowerCase();
+                // Populate market selector with checkboxes
+                const markets = [...new Set(properties.map(p => p.market).filter(m => m !== 'N/A' && m !== ''))];
+                const marketSelectorList = document.getElementById('market-selector-list');
+                const selectAllLabel = marketSelectorList.querySelector('label');
+                markets.forEach(function(market) {
+                    const label = document.createElement('label');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = market;
+                    checkbox.checked = true;
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(` ${market}`));
+                    marketSelectorList.appendChild(label);
+                });
+                // Toggle market selector visibility
+                const marketToggle = document.getElementById('market-toggle');
+                marketToggle.addEventListener('click', function() {
+                    const marketList = document.getElementById('market-selector-list');
+                    marketList.classList.toggle('collapsed');
+                    this.textContent = marketList.classList.contains('collapsed') ? 'Show Market Selection' : 'Hide Market Selection';
+                });
+                // Event for select all
+                const selectAllCheckbox = document.getElementById('select-all-markets');
+                selectAllCheckbox.addEventListener('change', function() {
+                    const marketCheckboxes = marketSelectorList.querySelectorAll('input[type="checkbox"][value]');
+                    marketCheckboxes.forEach(cb => cb.checked = this.checked);
+                    updateMapAndProperties(getSelectedMarkets());
+                });
+                // Event for individual market checkboxes
+                const marketCheckboxes = marketSelectorList.querySelectorAll('input[type="checkbox"][value]');
+                marketCheckboxes.forEach(cb => {
+                    cb.addEventListener('change', function() {
+                        const allChecked = Array.from(marketCheckboxes).every(cb => cb.checked);
+                        selectAllCheckbox.checked = allChecked;
+                        updateMapAndProperties(getSelectedMarkets());
+                    });
+                });
+                // Property search functionality
+                const propertySearchInput = document.getElementById('property-search');
+                const searchResults = document.getElementById('search-results');
+                propertySearchInput.addEventListener('input', function() {
+                    const value = this.value.toLowerCase();
                     searchResults.innerHTML = '';
                     if (value === '') {
                         searchResults.style.display = 'none';
                         return;
                     }
-                    var matchingProperties = properties.filter((prop, index) => prop.name.toLowerCase().includes(value));
+                    const selectedMarkets = getSelectedMarkets();
+                    const matchingProperties = properties
+                        .map((prop, index) => ({ prop, index }))
+                        .filter(({ prop, index }) =>
+                            prop.name.toLowerCase().includes(value) &&
+                            (selectedMarkets === 'all' || selectedMarkets.includes(prop.market)) &&
+                            !excluded.has(index)
+                        );
                     if (matchingProperties.length > 0) {
-                        matchingProperties.forEach((prop, i) => {
-                            var originalIndex = properties.indexOf(prop);
-                            var resultItem = document.createElement('div');
-                            resultItem.textContent = (originalIndex + 1) + ': ' + prop.name;
+                        matchingProperties.forEach(({ prop, index }, displayIndex) => {
+                            const number = selectedMarkets === 'all' ? index + 1 : displayIndex + 1;
+                            const resultItem = document.createElement('div');
+                            resultItem.textContent = `${number}: ${prop.name}`;
                             resultItem.onclick = function() {
                                 map.flyTo([prop.lat, prop.lng], 15);
-                                markers[originalIndex].openPopup();
+                                markers[index].openPopup();
                                 searchResults.style.display = 'none';
-                                searchInput.value = '';
+                                propertySearchInput.value = '';
                             };
                             searchResults.appendChild(resultItem);
                         });
@@ -361,101 +857,178 @@ fetchSheetData();
                         searchResults.style.display = 'none';
                     }
                 });
-
-                // Toggle for coloring
-                var colorToggle = document.getElementById('color-toggle');
-                var keySelector = document.getElementById('key-selector');
-                colorToggle.addEventListener('change', function() {
-                    var useColor = this.checked;
-                    keySelector.style.display = useColor ? 'block' : 'none';
-                    properties.forEach(function(property, index) {
-                        var bgColor = useColor ? getMarkerColor(property.saleType) : defaultColor;
-                        var customIcon = L.divIcon({
+                // Market search functionality
+                const marketSearchInput = document.getElementById('market-search');
+                const marketSearchResults = document.getElementById('market-search-results');
+                marketSearchInput.addEventListener('input', function() {
+                    // Deselect all markets when starting a new search
+                    const marketCheckboxes = marketSelectorList.querySelectorAll('input[type="checkbox"][value]');
+                    marketCheckboxes.forEach(cb => cb.checked = false);
+                    selectAllCheckbox.checked = false;
+                    updateMapAndProperties(getSelectedMarkets());
+                    const value = this.value.toLowerCase();
+                    marketSearchResults.innerHTML = '';
+                    if (value === '') {
+                        marketSearchResults.style.display = 'none';
+                        return;
+                    }
+                    const matchingMarkets = markets.filter(market => market.toLowerCase().includes(value));
+                    if (matchingMarkets.length > 0) {
+                        matchingMarkets.forEach(market => {
+                            const resultItem = document.createElement('div');
+                            resultItem.textContent = market;
+                            resultItem.onclick = function() {
+                                // Deselect all markets before selecting the clicked one
+                                marketCheckboxes.forEach(cb => cb.checked = false);
+                                selectAllCheckbox.checked = false;
+                                const checkbox = marketSelectorList.querySelector(`input[value="${market}"]`);
+                                if (checkbox) {
+                                    checkbox.checked = true;
+                                }
+                                updateMapAndProperties(getSelectedMarkets());
+                                marketSearchResults.style.display = 'none';
+                                marketSearchInput.value = '';
+                            };
+                            marketSearchResults.appendChild(resultItem);
+                        });
+                        marketSearchResults.style.display = 'block';
+                    } else {
+                        marketSearchResults.style.display = 'none';
+                    }
+                });
+                // Function to update map, property selector, and title based on selected markets
+                function updateMapAndProperties(selectedMarkets) {
+                    // Update map title
+                    const mapTitle = document.getElementById('map-title');
+                    if (selectedMarkets === 'all') {
+                        mapTitle.textContent = 'NIOS Land Map';
+                    } else if (selectedMarkets.length === 1) {
+                        mapTitle.textContent = `${selectedMarkets[0]} Market Map`;
+                    } else {
+                        mapTitle.textContent = 'Selected Markets Map';
+                    }
+                    // Get indices of properties for the selected markets
+                    const marketIndices = properties
+                        .map((prop, index) => ({ prop, index }))
+                        .filter(({ prop, index }) =>
+                            (selectedMarkets === 'all' || selectedMarkets.includes(prop.market)) &&
+                            !excluded.has(index)
+                        )
+                        .map(({ index }) => index);
+                    // Update marker numbers
+                    Object.keys(markers).forEach(index => {
+                        if (map.hasLayer(markers[index])) {
+                            map.removeLayer(markers[index]);
+                        }
+                    });
+                    marketIndices.forEach((index, displayIndex) => {
+                        const property = properties[index];
+                        const number = displayIndex + 1;
+                        const bgColor = marketColors[property.market] || defaultColor;
+                        const customIcon = L.divIcon({
                             className: '',
-                            html: '<div class="custom-marker-icon" style="background-color: ' + bgColor + ';">' + (index + 1) + '</div>',
-                            iconSize: [30, 30],
-                            iconAnchor: [15, 15]
+                            html: `<div class="custom-marker-icon" style="background-color: ${bgColor};">${number}</div>`,
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
                         });
                         markers[index].setIcon(customIcon);
+                        markers[index].addTo(map);
                     });
-                });
-
-                // Manage exclusions
-                var manageBtn = document.getElementById('manage-exclusions');
-                manageBtn.addEventListener('click', function() {
-                    var modal = document.getElementById('exclusions-modal');
+                    // Update property selector
+                    const propertySelector = document.getElementById('property-selector');
+                    propertySelector.innerHTML = '<option value="">Select a property...</option>';
+                    marketIndices.forEach((index, displayIndex) => {
+                        const property = properties[index];
+                        const number = displayIndex + 1;
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `${number}: ${property.name}`;
+                        propertySelector.appendChild(option);
+                    });
+                    // Update map bounds
+                    const visibleProperties = properties.filter((prop, index) => marketIndices.includes(index));
+                    if (visibleProperties.length > 0) {
+                        const bounds = L.latLngBounds(visibleProperties.map(prop => [prop.lat, prop.lng]));
+                        map.fitBounds(bounds.pad(0.2));
+                    }
+                }
+                document.getElementById('manage-exclusions').addEventListener('click', function() {
+                    const selectedMarkets = getSelectedMarkets();
+                    const modal = document.getElementById('exclusions-modal');
                     modal.style.display = 'block';
-                    var list = document.getElementById('exclusions-list');
+                    const list = document.getElementById('exclusions-list');
                     list.innerHTML = '';
                     properties.forEach(function(prop, index) {
-                        var li = document.createElement('li');
-                        var checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.dataset.index = index;
-                        checkbox.classList.add('exclude-checkbox');
-                        if (excluded.has(index)) checkbox.checked = true;
-                        li.appendChild(checkbox);
-                        li.appendChild(document.createTextNode(' ' + (index + 1) + ': ' + prop.name));
-                        list.appendChild(li);
+                        if (selectedMarkets === 'all' || selectedMarkets.includes(prop.market)) {
+                            const displayIndex = properties
+                                .slice(0, index)
+                                .filter((p, i) => (selectedMarkets === 'all' || selectedMarkets.includes(p.market)) && !excluded.has(i)).length + 1;
+                            const li = document.createElement('li');
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.dataset.index = index;
+                            checkbox.classList.add('exclude-checkbox');
+                            if (excluded.has(index)) checkbox.checked = true;
+                            li.appendChild(checkbox);
+                            li.appendChild(document.createTextNode(` ${displayIndex}: ${prop.name}`));
+                            list.appendChild(li);
+                        }
                     });
                 });
-
-                // Close modal
-                var closeSpans = document.getElementsByClassName('close');
-                for (var i = 0; i < closeSpans.length; i++) {
+                document.getElementById('screenshot-markets').addEventListener('click', takeMarketScreenshots);
+                const closeSpans = document.getElementsByClassName('close');
+                for (let i = 0; i < closeSpans.length; i++) {
                     closeSpans[i].addEventListener('click', function() {
                         this.parentElement.parentElement.style.display = 'none';
                     });
                 }
-
-                // Send excluded button
-                var sendBtn = document.getElementById('send-excluded');
-                sendBtn.addEventListener('click', function() {
+                document.getElementById('send-excluded').addEventListener('click', function() {
                     if (excluded.size === 0) {
                         alert('No properties excluded.');
                         return;
                     }
-                    var body = 'Excluded Properties:\n\n';
+                    let body = 'Excluded Properties:\n\n';
                     properties.forEach(function(prop, index) {
                         if (excluded.has(index)) {
-                            body += (index + 1) + ': ' + prop.name + '\n';
-                            body += 'Company: ' + prop.company + '\n';
-                            body += 'AC: ' + prop.ac + '\n';
-                            body += 'Contacts: ' + prop.contacts + '\n';
-                            body += 'Sale Type: ' + prop.saleType + '\n';
-                            body += 'Notes: ' + prop.notes + '\n';
-                            body += 'Link: ' + prop.link + '\n\n';
+                            body += `${index + 1}: ${prop.name}\n`;
+                            body += `Lat: ${prop.lat}\n`;
+                            body += `Lng: ${prop.lng}\n`;
+                            body += `Zoning: ${prop.zoning}\n`;
+                            body += `AC: ${prop.ac}\n`;
+                            body += `Market: ${prop.market}\n`;
+                            body += `$/sf: ${prop.dollar_per_sf}\n`;
+                            body += `Price: ${prop.price}\n`;
+                            body += `Link: ${prop.link}\n\n`;
                         }
                     });
-                    var encodedTo = encodeURIComponent('jpistone@national-ios.com');
-                    var encodedSubject = encodeURIComponent('Excluded Properties');
-                    var encodedBody = encodeURIComponent(body);
-                    
-                    // For Microsoft 365/Office Outlook Web (use this if it's a business email)
-                    var outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`;
-                    
-                    // Alternative for personal Outlook.com: 
-                    // var outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`;
-                    
-                    window.open(outlookUrl, '_blank');  // Opens in a new tab
+                    const encodedTo = encodeURIComponent('jpistone@national-ios.com');
+                    const encodedSubject = encodeURIComponent('Excluded Properties');
+                    const encodedBody = encodeURIComponent(body);
+                    const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`;
+                    window.open(outlookUrl, '_blank');
                 });
+                // Initial update
+                updateMapAndProperties(getSelectedMarkets());
+                document.getElementById('loading-indicator').style.display = 'none';
             },
             error: function(error) {
                 console.error('Error loading CSV:', error);
                 document.getElementById('property-selector').innerHTML = '<option value="">Error loading properties</option>';
+                document.getElementById('market-selector-container').innerHTML = 'Error loading markets';
+                document.getElementById('market-search').placeholder = 'Error loading markets';
                 document.getElementById('property-search').placeholder = 'Error loading properties';
+                document.getElementById('loading-indicator').style.display = 'none';
             }
         });
-
-        // Event delegation for exclude checkboxes (in popups and modal)
         document.addEventListener('change', function(e) {
             if (e.target.classList.contains('exclude-checkbox')) {
-                var index = parseInt(e.target.dataset.index);
+                const index = parseInt(e.target.dataset.index);
                 if (e.target.checked) {
                     excluded.add(index);
                 } else {
                     excluded.delete(index);
                 }
+                updateMapAndProperties(getSelectedMarkets());
             }
         });
     </script>
