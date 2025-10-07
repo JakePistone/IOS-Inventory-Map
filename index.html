@@ -201,17 +201,18 @@
             padding: 20px;
             box-sizing: border-box;
         }
-        .legend-container ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
+        .legend-container table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        .legend-container li {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            font-size: 14px;
-            color: #333;
+        .legend-container th, .legend-container td {
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        .legend-container th {
+            background-color: #f8f9fa;
+            font-weight: bold;
         }
         .color-box {
             width: 20px;
@@ -299,7 +300,7 @@
                     <canvas id="companyPieChart"></canvas>
                 </div>
                 <div class="legend-container">
-                    <ul id="custom-legend"></ul>
+                    <div id="custom-legend"></div>
                 </div>
             </div>
         </div>
@@ -640,23 +641,54 @@
                         }
                     }
                 });
-                // Generate custom legend
+                // Generate custom legend as table
                 var customLegend = document.getElementById('custom-legend');
+                var table = document.createElement('table');
+                var thead = document.createElement('thead');
+                var trHead = document.createElement('tr');
+                var thColor = document.createElement('th');
+                thColor.textContent = 'Color';
+                var thCompany = document.createElement('th');
+                thCompany.textContent = 'Company';
+                var thPercentage = document.createElement('th');
+                thPercentage.textContent = 'Percentage';
+                trHead.appendChild(thColor);
+                trHead.appendChild(thCompany);
+                trHead.appendChild(thPercentage);
+                thead.appendChild(trHead);
+                table.appendChild(thead);
+                var tbody = document.createElement('tbody');
                 labels.forEach(function(label, i) {
-                    var li = document.createElement('li');
+                    var tr = document.createElement('tr');
+                    var tdColor = document.createElement('td');
                     var colorBox = document.createElement('div');
                     colorBox.className = 'color-box';
                     colorBox.style.backgroundColor = colors[i];
-                    li.appendChild(colorBox);
+                    tdColor.appendChild(colorBox);
+                    var tdCompany = document.createElement('td');
+                    tdCompany.textContent = label;
+                    var tdPercentage = document.createElement('td');
                     var value = data[i];
                     var percentage = Math.round((value / total) * 100);
-                    li.appendChild(document.createTextNode(`${label} (${percentage}%)`));
-                    customLegend.appendChild(li);
+                    tdPercentage.textContent = percentage + '%';
+                    tr.appendChild(tdColor);
+                    tr.appendChild(tdCompany);
+                    tr.appendChild(tdPercentage);
+                    tbody.appendChild(tr);
                 });
+                table.appendChild(tbody);
+                customLegend.appendChild(table);
                 // Download PDF button
                 var downloadBtn = document.getElementById('download-pdf');
                 downloadBtn.addEventListener('click', function() {
                     const modalContent = document.querySelector('#chart-modal .modal-content');
+                    const originalModalHeight = modalContent.style.height;
+                    modalContent.style.height = 'auto';
+                    const chartWrapper = document.querySelector('.chart-wrapper');
+                    const originalWrapperFlex = chartWrapper.style.flex;
+                    chartWrapper.style.flex = '0 0 auto';
+                    const originalWrapperHeight = chartWrapper.style.height;
+                    chartWrapper.style.height = 'auto';
                     // Add date temporarily
                     const dateSpan = document.createElement('span');
                     dateSpan.style.position = 'absolute';
@@ -669,18 +701,21 @@
                     // Make legend full temporarily
                     const legendContainer = document.querySelector('.legend-container');
                     const originalOverflow = legendContainer.style.overflowY;
-                    const originalHeight = legendContainer.style.height;
+                    const originalLegendHeight = legendContainer.style.height;
                     legendContainer.style.overflowY = 'visible';
                     legendContainer.style.height = 'auto';
-                    const chartWrapper = document.querySelector('.chart-wrapper');
-                    const originalFlexDirection = chartWrapper.style.flexDirection;
-                    chartWrapper.style.flexDirection = 'column';
+                    const pieContainer = document.querySelector('.pie-container');
+                    const originalPieHeight = pieContainer.style.height;
+                    pieContainer.style.height = 'auto';
                     html2canvas(modalContent, { scale: 2, allowTaint: true, useCORS: true }).then(canvas => {
                         // Restore styles
-                        chartWrapper.style.flexDirection = originalFlexDirection;
+                        pieContainer.style.height = originalPieHeight;
                         legendContainer.style.overflowY = originalOverflow;
-                        legendContainer.style.height = originalHeight;
+                        legendContainer.style.height = originalLegendHeight;
+                        chartWrapper.style.height = originalWrapperHeight;
+                        chartWrapper.style.flex = originalWrapperFlex;
                         modalContent.removeChild(dateSpan);
+                        modalContent.style.height = originalModalHeight;
                         // Generate PDF
                         const { jsPDF } = window.jspdf;
                         const doc = new jsPDF('landscape', 'pt', 'a4');
@@ -725,4 +760,4 @@
         });
     </script>
 </body>
-</html>
+</html>\
