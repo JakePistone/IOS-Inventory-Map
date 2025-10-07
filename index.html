@@ -5,118 +5,154 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DFW IOS Inventory Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script> <!-- Add PapaParse for CSV parsing -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         html, body {
             height: 100%;
             margin: 0;
             padding: 0;
+            font-family: 'Roboto', sans-serif;
+            color: #333;
         }
-        #map { 
-            height: 100vh; /* Full viewport height */
-            width: 100%; /* Full width */
+        #map {
+            height: 100vh;
+            width: 100%;
         }
         .custom-marker-icon {
-            border: 2px solid #ffffff; /* White border */
-            color: white; /* Number color */
+            border: 2px solid #ffffff;
+            color: white;
             font-weight: bold;
             font-size: 14px;
             text-align: center;
-            border-radius: 50%; /* Circular shape */
+            border-radius: 50%;
             width: 30px;
             height: 30px;
-            line-height: 30px; /* Center vertically */
+            line-height: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-        .dropdown-container {
+        .control-panel {
             position: absolute;
-            top: 10px;
-            right: 60px; /* Moved left to avoid overlap with layer control */
-            z-index: 1100; /* Above map, below expanded layer control */
+            top: 60px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 15px;
+            width: 280px;
+        }
+        .control-panel select,
+        .control-panel input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        #property-selector {
+            margin-bottom: 10px;
+        }
+        #company-selector {
+            margin-bottom: 10px;
+        }
+        #property-search-container {
+            position: relative;
+        }
+        #property-search {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        #search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        #search-results div {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        #search-results div:hover {
+            background: #f5f5f5;
+        }
+        .map-title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .logo {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #333;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .leaflet-control-layers-expanded {
+            z-index: 1200 !important;
+        }
+        .leaflet-control-layers {
+            margin-top: 200px !important;
+        }
+        .action-buttons {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1100;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        #property-selector {
-            position: absolute;
-            top: 50px; /* Position below title */
-            left: 50px;
-            z-index: 1000;
-            padding: 5px;
-            background: rgb(250, 251, 251);
-            border: 1px solid #ccc;
-            max-width: 300px;
-            font-size: 14px;
-        }
-        #property-search-container {
-            position: absolute;
-            top: 80px; /* Position below selector */
-            left: 50px;
-            z-index: 1000;
-            max-width: 300px;
-        }
-        #property-search {
-            width: 100%;
-            padding: 5px;
-            background: rgb(250, 251, 251);
-            border: 1px solid #ccc;
-            font-size: 14px;
-        }
-        #search-results {
-            max-height: 200px;
-            overflow-y: auto;
-            background: white;
-            border: 1px solid #ccc;
-            border-top: none;
-            display: none;
-        }
-        #search-results div {
-            padding: 5px;
+        .action-buttons button,
+        .action-buttons label {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
-        }
-        #search-results div:hover {
-            background: #f0f0f0;
-        }
-        #key-selector, .toggle-container {
-            padding: 5px;
-            background: rgb(250, 251, 251);
-            border: 1px solid #ccc;
-            max-width: 300px;
-            font-size: 14px;
-        }
-        #key-selector {
-            background: rgb(240, 240, 240); /* Slightly different background for distinction */
-            display: none; /* Hidden by default */
-        }
-        .map-title {
-            position: absolute;
-            top: 10px;
-            left: 50px;
-            z-index: 1000;
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
-            padding: 5px 10px; /* Padding for better appearance */
-            border-radius: 4px; /* Rounded corners */
-        }
-        .logo {
-            position: absolute;
-            bottom: 10px;
-            left: 20px;
-            width: 70px;
-            height: 50px;
-            z-index: 1000;
-            background-color: #fcfdfeee; /* Blue background to match the logo */
-            padding: 3px 10px; /* Padding for better appearance */
-            border-radius: 3px; /* Rounded corners */
-            color: rgb(16, 17, 17);
-            font-weight: bold;
             font-size: 14px;
             text-align: center;
-            line-height: 20px; /* Center text vertically */
+            transition: background-color 0.3s;
         }
-        .leaflet-control-layers-expanded {
-            z-index: 1200 !important; /* Higher than dropdown-container */
+        .action-buttons button:hover,
+        .action-buttons label:hover {
+            background-color: #0056b3;
+        }
+        .action-buttons input[type="checkbox"] {
+            margin-right: 5px;
         }
         .modal {
             display: none;
@@ -127,80 +163,153 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.4);
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
         }
         .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
+            background-color: #ffffff;
+            margin: auto;
             padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
+            border-radius: 8px;
+            border: none;
+            width: 90%;
+            max-width: 1200px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        #chart-modal .modal-content {
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+        }
+        .chart-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .pie-container {
+            width: 50%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .legend-container {
+            width: 50%;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .legend-container ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .legend-container li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            flex-shrink: 0;
+            border: 1px solid #ddd;
         }
         .close {
             color: #aaa;
             float: right;
             font-size: 28px;
             font-weight: bold;
+            cursor: pointer;
         }
         .close:hover,
         .close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
+            color: #333;
         }
         #exclusions-list {
             list-style-type: none;
             padding: 0;
         }
         #exclusions-list li {
-            margin-bottom: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        #exclusions-list input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        #download-pdf {
+            margin-left: 10px;
+            padding: 8px 12px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #download-pdf:hover {
+            background-color: #218838;
         }
     </style>
 </head>
 <body>
     <div class="map-title">DFW IOS Inventory Map</div>
-    <div class="logo"> NATIONAL --- IOS --- <br></div>
-    <select id="property-selector">
-        <option value="">Loading properties...</option> <!-- Placeholder while loading -->
-    </select>
-    <div id="property-search-container">
-        <input type="text" id="property-search" placeholder="Search properties...">
-        <div id="search-results"></div>
-    </div>
-    <div class="dropdown-container">
-        <div class="toggle-container">
-            <input type="checkbox" id="color-toggle">
-            <label for="color-toggle">Color by Sale Type</label>
-        </div>
-        <select id="key-selector">
-            <option value="">Color Key</option>
-            <option value="N/A" disabled style="color: #808080;">N/A - Gray</option>
-            <option value="Lease " disabled style="color: #006400;">Lease - Dark Green</option>
-            <option value="Sale" disabled style="color: #B22222;">Sale - Dark Red</option>
-            <option value="Sale/Lease" disabled style="color: #4B0082;">Sale/Lease - Indigo</option>
-            <option value="Investment" disabled style="color: #FF4500;">Investment - Orange Red</option>
-            <option value="Planned" disabled style="color: #FFD700;">Planned - Gold</option>
-            <option value="Not for sale" disabled style="color: #000000;">Not for sale - Black</option>
-            <option value="Sale/ Under Contract" disabled style="color: #0000FF;">Sale/Under contract - Blue</option>
-            <option value="" disabled style="color: #808080;">Empty - Gray</option>
-            <option value="default" disabled style="color: #1E90FF;">Other - Dodger Blue</option>
+    <div class="logo">NATIONAL IOS</div>
+    <div class="control-panel">
+        <select id="property-selector">
+            <option value="">Select a property...</option>
         </select>
+        <div id="property-search-container">
+            <input type="text" id="property-search" placeholder="Search properties...">
+            <div id="search-results"></div>
+        </div>
+        <select id="company-selector">
+            <option value="all">All Companies</option>
+        </select>
+    </div>
+    <div class="action-buttons">
         <button id="manage-exclusions">Manage Exclusions</button>
         <button id="send-excluded">Send Excluded List</button>
+        <button id="view-chart">View Company Distribution</button>
+        <label for="nios-toggle">
+            <input type="checkbox" id="nios-toggle"> Always Show NIOS in Red
+        </label>
     </div>
+    <button id="toggle-hotspot" style="position: absolute; top: 200px; right: 60px; z-index: 1100; padding: 8px 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Toggle Hotspot Map</button>
     <div id="map"></div>
     <div id="exclusions-modal" class="modal">
         <div class="modal-content">
-            <span class="close">×</span>
+            <span class="close">&times;</span>
             <h2>Manage Exclusions (Check to Exclude)</h2>
             <ul id="exclusions-list"></ul>
         </div>
     </div>
+    <div id="chart-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Company Distribution <button id="download-pdf">Download PDF</button></h2>
+            <div class="chart-wrapper">
+                <div class="pie-container">
+                    <canvas id="companyPieChart"></canvas>
+                </div>
+                <div class="legend-container">
+                    <ul id="custom-legend"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script>
         // Initialize the map
         var map = L.map('map').setView([32.7767, -96.7970], 10); // Center on Dallas, TX with broader zoom
-        
+     
         // Define tile layers
         var streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -208,66 +317,85 @@
         var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
         });
-
         // Layer control
         var baseLayers = {
             "Street Map": streetLayer,
             "Satellite": satelliteLayer
         };
         L.control.layers(baseLayers, null, { collapsed: true }).addTo(map); // Ensure only one layer is active at a time
-
-        // Function to get color based on saleType
-        function getMarkerColor(saleType) {
-            switch (saleType) {
-                case "N/A":
-                    return "#808080"; // Gray
-                case "Lease":
-                    return "#006400"; // Dark Green
-                case "Sale":
-                    return "#B22222"; // Dark Red
-                case "Sale/ Lease":
-                    return "#4B0082"; // Indigo
-                case "Investment":
-                    return "#FF4500"; // Orange Red
-                case "Planned":
-                    return "#FFD700"; // Gold
-                case "Not for sale":
-                    return "#000000"; // Black
-                case "lease":
-                    return "#006400"; // Dark Green (same as Lease)
-                case "Sale/ Under contract":
-                    return "#0000FF"; // Blue
-                case "":
-                    return "#808080"; // Gray for empty
-                default:
-                    return "#1E90FF"; // Dodger Blue for any others
-            }
-        }
-
         // Object to store markers by index
         var markers = {};
         var properties = [];
         var excluded = new Set();
-
+        var isHotspotMode = false;
+        var clusterLayer = null;
         // Default color for markers
-        var defaultColor = '#3374ff'; // Default blue color
-async function fetchSheetData() {
-  try {
-    const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vQyjbVWD1yUEOpgxxzNEyW0SNTLJxNnfNaHuxOXoqO6pRTRqEcl9omMhULQEsfiz8qfvrTdTv4tArXH/pub?gid=0&single=true&output=csv');
-    if (!response.ok) {
-      throw new Error('Fetch failed: ' + response.status);
-    }
-    const data = await response.text();
-    console.log(data); // Log to check raw CSV
-    // Parse CSV (e.g., split by lines/commas or use a library like PapaParse)
-    const rows = data.split('\n').map(row => row.split(','));
-    // Display data points, e.g., update DOM elements
-    document.getElementById('data-container').innerText = JSON.stringify(rows);
-  } catch (error) {
-    console.error('Error fetching Sheet:', error);
-  }
-}
-fetchSheetData();
+        var defaultColor = '#007bff'; // Professional blue color
+        var niosColor = '#dc3545'; // Red for NIOS
+        // Function to set marker color
+        function setMarkerColor(index, bgColor) {
+            var marker = markers[index];
+            var number = index + 1;
+            var customIcon = L.divIcon({
+                className: '', // Clear default class
+                html: '<div class="custom-marker-icon" style="background-color: ' + bgColor + ';">' + number + '</div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            marker.setIcon(customIcon);
+        }
+        // Function to update markers visibility and color
+        function updateMarkers() {
+            // Remove all individual markers and cluster if exists
+            Object.keys(markers).forEach(index => {
+                if (map.hasLayer(markers[index])) {
+                    map.removeLayer(markers[index]);
+                }
+            });
+            if (clusterLayer) {
+                map.removeLayer(clusterLayer);
+                clusterLayer = null;
+            }
+            // Calculate visible indices and set colors
+            let visibleIndices = [];
+            var selectedCompany = document.getElementById('company-selector').value;
+            var showNios = document.getElementById('nios-toggle').checked;
+            Object.keys(markers).forEach(index => {
+                var prop = properties[index];
+                var shouldShow = false;
+                var color = defaultColor;
+                var companyTrim = prop.company.trim();
+                if (companyTrim === 'NIOS') {
+                    color = niosColor;
+                    if (showNios) {
+                        shouldShow = true;
+                    } else {
+                        shouldShow = (selectedCompany === 'all' || companyTrim === selectedCompany);
+                    }
+                } else {
+                    shouldShow = (selectedCompany === 'all' || companyTrim === selectedCompany);
+                }
+                setMarkerColor(index, color);
+                if (shouldShow) {
+                    visibleIndices.push(index);
+                }
+            });
+            // Add layers based on mode
+            if (isHotspotMode) {
+                clusterLayer = L.markerClusterGroup();
+                visibleIndices.forEach(index => {
+                    var original = markers[index];
+                    var cloned = new L.Marker(original.getLatLng(), { icon: original.getIcon() });
+                    cloned.bindPopup(original.getPopup().getContent());
+                    clusterLayer.addLayer(cloned);
+                });
+                map.addLayer(clusterLayer);
+            } else {
+                visibleIndices.forEach(index => {
+                    map.addLayer(markers[index]);
+                });
+            }
+        }
         // Load properties from Google Sheets published CSV
         Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vQyjbVWD1yUEOpgxxzNEyW0SNTLJxNnfNaHuxOXoqO6pRTRqEcl9omMhULQEsfiz8qfvrTdTv4tArXH/pub?gid=0&single=true&output=csv', {
             download: true,
@@ -278,14 +406,13 @@ fetchSheetData();
                     name: row.Name || 'N/A', // Adjusted for 'Name' header case
                     lat: parseFloat(row.lat),
                     lng: parseFloat(row.lng),
-                    company: row.company || 'N/A',
+                    company: row.Company || 'N/A',
                     ac: row.ac || 'N/A',
                     contacts: row.contacts || 'N/A',
                     saleType: row["sale Type"] || 'N/A', // Adjusted for space in header
                     link: row.link || 'N/A',
                     notes: row.notes || ''
                 })).filter(row => !isNaN(row.lat) && !isNaN(row.lng)); // Filter invalid rows
-
                 // Add numbered markers for each property with default color initially
                 properties.forEach(function(property, index) {
                     var number = index + 1; // Start numbering from 1
@@ -307,11 +434,9 @@ fetchSheetData();
                         <br><label><input type="checkbox" class="exclude-checkbox" data-index="${index}"> Exclude from table</label>
                     `;
                     var marker = L.marker([property.lat, property.lng], { icon: customIcon })
-                        .addTo(map)
                         .bindPopup(popupContent);
                     markers[index] = marker;
                 });
-
                 // Populate the selector
                 var selector = document.getElementById('property-selector');
                 selector.innerHTML = '<option value="">Select a property...</option>'; // Clear loading message
@@ -321,7 +446,6 @@ fetchSheetData();
                     option.textContent = (index + 1) + ': ' + property.name;
                     selector.appendChild(option);
                 });
-
                 // Event listener for selector change
                 selector.addEventListener('change', function() {
                     var selectedIndex = this.value;
@@ -331,7 +455,6 @@ fetchSheetData();
                         markers[selectedIndex].openPopup(); // Open the popup
                     }
                 });
-
                 // Search functionality
                 var searchInput = document.getElementById('property-search');
                 var searchResults = document.getElementById('search-results');
@@ -361,30 +484,44 @@ fetchSheetData();
                         searchResults.style.display = 'none';
                     }
                 });
-
-                // Toggle for coloring
-                var colorToggle = document.getElementById('color-toggle');
-                var keySelector = document.getElementById('key-selector');
-                colorToggle.addEventListener('change', function() {
-                    var useColor = this.checked;
-                    keySelector.style.display = useColor ? 'block' : 'none';
-                    properties.forEach(function(property, index) {
-                        var bgColor = useColor ? getMarkerColor(property.saleType) : defaultColor;
-                        var customIcon = L.divIcon({
-                            className: '',
-                            html: '<div class="custom-marker-icon" style="background-color: ' + bgColor + ';">' + (index + 1) + '</div>',
-                            iconSize: [30, 30],
-                            iconAnchor: [15, 15]
-                        });
-                        markers[index].setIcon(customIcon);
-                    });
+                // Calculate company counts
+                var companyCounts = {};
+                properties.forEach(function(prop) {
+                    var comp = prop.company.trim();
+                    if (comp && comp !== 'N/A') {
+                        companyCounts[comp] = (companyCounts[comp] || 0) + 1;
+                    }
                 });
-
+                // Sort companies by count descending
+                var sortedCompanies = Object.entries(companyCounts).sort((a, b) => b[1] - a[1]);
+                // Populate company selector
+                var companySelector = document.getElementById('company-selector');
+                companySelector.innerHTML = '<option value="all">All Companies</option>'; // Default option
+                sortedCompanies.forEach(function(entry) {
+                    var company = entry[0];
+                    var option = document.createElement('option');
+                    option.value = company;
+                    option.textContent = company;
+                    companySelector.appendChild(option);
+                });
+                // Event listener for company selector change
+                companySelector.addEventListener('change', updateMarkers);
+                // Event listener for NIOS toggle
+                document.getElementById('nios-toggle').addEventListener('change', updateMarkers);
+                // Event listener for hotspot toggle
+                var toggleHotspotBtn = document.getElementById('toggle-hotspot');
+                toggleHotspotBtn.addEventListener('click', function() {
+                    isHotspotMode = !isHotspotMode;
+                    this.textContent = isHotspotMode ? 'Toggle Normal Map' : 'Toggle Hotspot Map';
+                    updateMarkers();
+                });
+                // Initial update
+                updateMarkers();
                 // Manage exclusions
                 var manageBtn = document.getElementById('manage-exclusions');
                 manageBtn.addEventListener('click', function() {
                     var modal = document.getElementById('exclusions-modal');
-                    modal.style.display = 'block';
+                    modal.style.display = 'flex';
                     var list = document.getElementById('exclusions-list');
                     list.innerHTML = '';
                     properties.forEach(function(prop, index) {
@@ -399,7 +536,6 @@ fetchSheetData();
                         list.appendChild(li);
                     });
                 });
-
                 // Close modal
                 var closeSpans = document.getElementsByClassName('close');
                 for (var i = 0; i < closeSpans.length; i++) {
@@ -407,7 +543,6 @@ fetchSheetData();
                         this.parentElement.parentElement.style.display = 'none';
                     });
                 }
-
                 // Send excluded button
                 var sendBtn = document.getElementById('send-excluded');
                 sendBtn.addEventListener('click', function() {
@@ -430,14 +565,145 @@ fetchSheetData();
                     var encodedTo = encodeURIComponent('jpistone@national-ios.com');
                     var encodedSubject = encodeURIComponent('Excluded Properties');
                     var encodedBody = encodeURIComponent(body);
-                    
+                 
                     // For Microsoft 365/Office Outlook Web (use this if it's a business email)
                     var outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`;
-                    
-                    // Alternative for personal Outlook.com: 
+                 
+                    // Alternative for personal Outlook.com:
                     // var outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`;
-                    
-                    window.open(outlookUrl, '_blank');  // Opens in a new tab
+                 
+                    window.open(outlookUrl, '_blank'); // Opens in a new tab
+                });
+                // View chart button
+                var viewChartBtn = document.getElementById('view-chart');
+                viewChartBtn.addEventListener('click', function() {
+                    var modal = document.getElementById('chart-modal');
+                    modal.style.display = 'flex';
+                    // Update chart if needed
+                    pieChart.resize();
+                });
+                // Create pie chart for companies
+                var labels = sortedCompanies.map(entry => entry[0]);
+                var data = sortedCompanies.map(entry => entry[1]);
+                // Professional color palette
+                var professionalColors = ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'];
+                var colors = labels.map((_, i) => professionalColors[i % professionalColors.length]);
+                var ctx = document.getElementById('companyPieChart').getContext('2d');
+                var total = data.reduce((a, b) => a + b, 0);
+                var pieChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: colors,
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                display: false // Disable built-in legend
+                            },
+                            title: {
+                                display: false // Title is already in HTML
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(255,255,255,0.8)',
+                                titleColor: '#333',
+                                bodyColor: '#333',
+                                borderColor: '#ccc',
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        let value = context.raw || 0;
+                                        let percentage = Math.round((value / total) * 100);
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            },
+                            datalabels: {
+                                display: false
+                            }
+                        },
+                        layout: {
+                            padding: 20
+                        },
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
+                });
+                // Generate custom legend
+                var customLegend = document.getElementById('custom-legend');
+                labels.forEach(function(label, i) {
+                    var li = document.createElement('li');
+                    var colorBox = document.createElement('div');
+                    colorBox.className = 'color-box';
+                    colorBox.style.backgroundColor = colors[i];
+                    li.appendChild(colorBox);
+                    var value = data[i];
+                    var percentage = Math.round((value / total) * 100);
+                    li.appendChild(document.createTextNode(`${label} (${percentage}%)`));
+                    customLegend.appendChild(li);
+                });
+                // Download PDF button
+                var downloadBtn = document.getElementById('download-pdf');
+                downloadBtn.addEventListener('click', function() {
+                    const modalContent = document.querySelector('#chart-modal .modal-content');
+                    // Add date temporarily
+                    const dateSpan = document.createElement('span');
+                    dateSpan.style.position = 'absolute';
+                    dateSpan.style.top = '10px';
+                    dateSpan.style.right = '20px';
+                    dateSpan.style.fontSize = '12px';
+                    dateSpan.style.color = '#333';
+                    dateSpan.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+                    modalContent.appendChild(dateSpan);
+                    // Make legend full temporarily
+                    const legendContainer = document.querySelector('.legend-container');
+                    const originalOverflow = legendContainer.style.overflowY;
+                    const originalHeight = legendContainer.style.height;
+                    legendContainer.style.overflowY = 'visible';
+                    legendContainer.style.height = 'auto';
+                    const chartWrapper = document.querySelector('.chart-wrapper');
+                    const originalFlexDirection = chartWrapper.style.flexDirection;
+                    chartWrapper.style.flexDirection = 'column';
+                    html2canvas(modalContent, { scale: 2, allowTaint: true, useCORS: true }).then(canvas => {
+                        // Restore styles
+                        chartWrapper.style.flexDirection = originalFlexDirection;
+                        legendContainer.style.overflowY = originalOverflow;
+                        legendContainer.style.height = originalHeight;
+                        modalContent.removeChild(dateSpan);
+                        // Generate PDF
+                        const { jsPDF } = window.jspdf;
+                        const doc = new jsPDF('landscape', 'pt', 'a4');
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdfWidth = doc.internal.pageSize.getWidth();
+                        const pdfHeight = doc.internal.pageSize.getHeight();
+                        const imgWidth = canvas.width / 2; // Since scale=2
+                        const imgHeight = canvas.height / 2; // Since scale=2
+                        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+                        const scaledWidth = imgWidth * ratio;
+                        const scaledHeight = imgHeight * ratio;
+                        let heightLeft = scaledHeight;
+                        let position = 0;
+                        doc.addImage(imgData, 'PNG', (pdfWidth - scaledWidth) / 2, position, scaledWidth, scaledHeight);
+                        heightLeft -= pdfHeight;
+                        while (heightLeft > 0) {
+                            doc.addPage();
+                            position = heightLeft - scaledHeight;
+                            doc.addImage(imgData, 'PNG', (pdfWidth - scaledWidth) / 2, position, scaledWidth, scaledHeight);
+                            heightLeft -= pdfHeight;
+                        }
+                        doc.save('company_distribution.pdf');
+                    });
                 });
             },
             error: function(error) {
@@ -446,7 +712,6 @@ fetchSheetData();
                 document.getElementById('property-search').placeholder = 'Error loading properties';
             }
         });
-
         // Event delegation for exclude checkboxes (in popups and modal)
         document.addEventListener('change', function(e) {
             if (e.target.classList.contains('exclude-checkbox')) {
